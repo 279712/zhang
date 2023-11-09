@@ -1,0 +1,710 @@
+# -*- coding: utf-8 -*-
+# @Time    : 2021/6/17 20:29
+# @Author  : dejahu
+# @Email   : 1148392984@qq.com
+# @File    : data_split.py
+# @Software: PyCharm
+# @Brief   : 将数据集划分为训练集、验证集和测试集
+import os
+import random
+from shutil import copy2
+
+
+def data_set_split(src_data_folder, target_data_folder, train_scale=0.8, val_scale=0.2, test_scale=0.0):
+    '''
+    读取源数据文件夹，生成划分好的文件夹，分为trian、val、test三个文件夹进行
+    :param src_data_folder: 源文件夹 E:/biye/gogogo/note_book/torch_note/data/utils_test/data_split/src_data
+    :param target_data_folder: 目标文件夹 E:/biye/gogogo/note_book/torch_note/data/utils_test/data_split/target_data
+    :param train_scale: 训练集比例
+    :param val_scale: 验证集比例
+    :param test_scale: 测试集比例
+    :return:
+    '''
+    print("开始数据集划分")
+    class_names = os.listdir(src_data_folder)
+    # 在目标目录下创建文件夹
+    split_names = ['train', 'val', 'test']
+    for split_name in split_names:
+        split_path = os.path.join(target_data_folder, split_name)
+        if os.path.isdir(split_path):
+            pass
+        else:
+            os.mkdir(split_path)
+        # 然后在split_path的目录下创建类别文件夹
+        for class_name in class_names:
+            class_split_path = os.path.join(split_path, class_name)
+            if os.path.isdir(class_split_path):
+                pass
+            else:
+                os.mkdir(class_split_path)
+
+    # 按照比例划分数据集，并进行数据图片的复制
+    # 首先进行分类遍历
+    for class_name in class_names:
+        current_class_data_path = os.path.join(src_data_folder, class_name)
+        current_all_data = os.listdir(current_class_data_path)
+        current_data_length = len(current_all_data)
+        current_data_index_list = list(range(current_data_length))
+        random.shuffle(current_data_index_list)
+
+        train_folder = os.path.join(os.path.join(target_data_folder, 'train'), class_name)
+        val_folder = os.path.join(os.path.join(target_data_folder, 'val'), class_name)
+        test_folder = os.path.join(os.path.join(target_data_folder, 'test'), class_name)
+        train_stop_flag = current_data_length * train_scale
+        val_stop_flag = current_data_length * (train_scale + val_scale)
+        current_idx = 0
+        train_num = 0
+        val_num = 0
+        test_num = 0
+        for i in current_data_index_list:
+            src_img_path = os.path.join(current_class_data_path, current_all_data[i])
+            if current_idx <= train_stop_flag:
+                copy2(src_img_path, train_folder)
+                # print("{}复制到了{}".format(src_img_path, train_folder))
+                train_num = train_num + 1
+            elif (current_idx > train_stop_flag) and (current_idx <= val_stop_flag):
+                copy2(src_img_path, val_folder)
+                # print("{}复制到了{}".format(src_img_path, val_folder))
+                val_num = val_num + 1
+            else:
+                copy2(src_img_path, test_folder)
+                # print("{}复制到了{}".format(src_img_path, test_folder))
+                test_num = test_num + 1
+
+            current_idx = current_idx + 1
+
+        print("*********************************{}*************************************".format(class_name))
+        print(
+            "{}类按照{}：{}：{}的比例划分完成，一共{}张图片".format(class_name, train_scale, val_scale, test_scale, current_data_length))
+        print("训练集{}：{}张".format(train_folder, train_num))
+        print("验证集{}：{}张".format(val_folder, val_num))
+        print("测试集{}：{}张".format(test_folder, test_num))
+
+
+if __name__ == '__main__':
+    src_data_folder = "../../data/src_data"   # todo 修改你的原始数据集路径
+    target_data_folder = "../../data/split_data"  # todo 修改为你要存放的路径
+data_set_split(src_data_folder, target_data_folder)
+
+
+# -*- coding: utf-8 -*-
+# @Time    : 2021/6/17 20:29
+# @Author  : dejahu
+# @Email   : 1148392984@qq.com
+# @File    : get_data.py
+# @Software: PyCharm
+# @Brief   : 爬取百度图片
+
+import requests
+import re
+import os
+
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36'}
+name = input('请输入要爬取的图片类别：')
+num = 0
+num_1 = 0
+num_2 = 0
+x = input('请输入要爬取的图片数量？（1等于60张图片，2等于120张图片）：')
+list_1 = []
+for i in range(int(x)):
+    name_1 = os.getcwd()
+    name_2 = os.path.join(name_1, 'data/' + name)
+    url = 'https://image.baidu.com/search/flip?tn=baiduimage&ie=utf-8&word=' + name + '&pn=' + str(i * 30)
+    res = requests.get(url, headers=headers)
+    htlm_1 = res.content.decode()
+    a = re.findall('"objURL":"(.*?)",', htlm_1)
+    if not os.path.exists(name_2):
+        os.makedirs(name_2)
+    for b in a:
+        try:
+            b_1 = re.findall('https:(.*?)&', b)
+            b_2 = ''.join(b_1)
+            if b_2 not in list_1:
+                num = num + 1
+                img = requests.get(b)
+                f = open(os.path.join(name_1, 'data/' + name, name + str(num) + '.jpg'), 'ab')
+                print('---------正在下载第' + str(num) + '张图片----------')
+                f.write(img.content)
+                f.close()
+                list_1.append(b_2)
+            elif b_2 in list_1:
+                num_1 = num_1 + 1
+                continue
+        except Exception as e:
+            print('---------第' + str(num) + '张图片无法下载----------')
+            num_2 = num_2 + 1
+            continue
+
+print('下载完成,总共下载{}张,成功下载:{}张,重复下载:{}张,下载失败:{}张'.format(num + num_1 + num_2, num, num_1, num_2))
+
+
+tensorflow-cpu == 2.3.0
+pyqt5
+pillow
+opencv-python
+matplotlib
+
+
+# -*- coding: utf-8 -*-
+# @Time    : 2021/6/17 20:29
+# @Author  : dejahu
+# @Email   : 1148392984@qq.com
+# @File    : test_model.py
+# @Software: PyCharm
+# @Brief   : 模型测试代码，测试会生成热力图，热力图会保存在results目录下
+
+import tensorflow as tf
+import matplotlib.pyplot as plt
+import numpy as np
+plt.rcParams['font.family'] = ['sans-serif']
+plt.rcParams['font.sans-serif'] = ['SimHei']
+
+
+# 数据加载，分别从训练的数据集的文件夹和测试的文件夹中加载训练集和验证集
+def data_load(data_dir, test_data_dir, img_height, img_width, batch_size):
+    # 加载训练集
+    train_ds = tf.keras.preprocessing.image_dataset_from_directory(
+        data_dir,
+        label_mode='categorical',
+        seed=123,
+        image_size=(img_height, img_width),
+        batch_size=batch_size)
+    # 加载测试集
+    val_ds = tf.keras.preprocessing.image_dataset_from_directory(
+        test_data_dir,
+        label_mode='categorical',
+        seed=123,
+        image_size=(img_height, img_width),
+        batch_size=batch_size)
+    class_names = train_ds.class_names
+    # 返回处理之后的训练集、验证集和类名
+    return train_ds, val_ds, class_names
+
+
+# 测试mobilenet准确率
+def test_mobilenet():
+    # todo 加载数据, 修改为你自己的数据集的路径
+    train_ds, test_ds, class_names = data_load("../data/vegetable_fruit/image_data",
+                                              "../data/vegetable_fruit/test_image_data", 224, 224, 16)
+    # todo 加载模型，修改为你的模型名称
+    model = tf.keras.models.load_model("models/mobilenet_fv.h5")
+    # model.summary()
+    # 测试
+    loss, accuracy = model.evaluate(test_ds)
+    # 输出结果
+    print('Mobilenet test accuracy :', accuracy)
+
+    test_real_labels = []
+    test_pre_labels = []
+    for test_batch_images, test_batch_labels in test_ds:
+        test_batch_labels = test_batch_labels.numpy()
+        test_batch_pres = model.predict(test_batch_images)
+        # print(test_batch_pres)
+
+        test_batch_labels_max = np.argmax(test_batch_labels, axis=1)
+        test_batch_pres_max = np.argmax(test_batch_pres, axis=1)
+        # print(test_batch_labels_max)
+        # print(test_batch_pres_max)
+        # 将推理对应的标签取出
+        for i in test_batch_labels_max:
+            test_real_labels.append(i)
+
+        for i in test_batch_pres_max:
+            test_pre_labels.append(i)
+        # break
+
+    # print(test_real_labels)
+    # print(test_pre_labels)
+    class_names_length = len(class_names)
+    heat_maps = np.zeros((class_names_length, class_names_length))
+    for test_real_label, test_pre_label in zip(test_real_labels, test_pre_labels):
+        heat_maps[test_real_label][test_pre_label] = heat_maps[test_real_label][test_pre_label] + 1
+
+    print(heat_maps)
+    heat_maps_sum = np.sum(heat_maps, axis=1).reshape(-1, 1)
+    # print(heat_maps_sum)
+    print()
+    heat_maps_float = heat_maps / heat_maps_sum
+    print(heat_maps_float)
+    # title, x_labels, y_labels, harvest
+    show_heatmaps(title="heatmap", x_labels=class_names, y_labels=class_names, harvest=heat_maps_float,
+                  save_name="results/heatmap_mobilenet.png")
+
+
+# 测试cnn模型准确率
+def test_cnn():
+    # todo 加载数据, 修改为你自己的数据集的路径
+    train_ds, test_ds, class_names = data_load("../data/vegetable_fruit/image_data",
+                                              "../data/vegetable_fruit/test_image_data", 224, 224, 16)
+    # todo 加载模型，修改为你的模型名称
+    model = tf.keras.models.load_model("models/cnn_fv.h5")
+    # model.summary()
+    # 测试
+    loss, accuracy = model.evaluate(test_ds)
+    # 输出结果
+    print('CNN test accuracy :', accuracy)
+
+    # 对模型分开进行推理
+    test_real_labels = []
+    test_pre_labels = []
+    for test_batch_images, test_batch_labels in test_ds:
+        test_batch_labels = test_batch_labels.numpy()
+        test_batch_pres = model.predict(test_batch_images)
+        # print(test_batch_pres)
+
+        test_batch_labels_max = np.argmax(test_batch_labels, axis=1)
+        test_batch_pres_max = np.argmax(test_batch_pres, axis=1)
+        # print(test_batch_labels_max)
+        # print(test_batch_pres_max)
+        # 将推理对应的标签取出
+        for i in test_batch_labels_max:
+            test_real_labels.append(i)
+
+        for i in test_batch_pres_max:
+            test_pre_labels.append(i)
+        # break
+
+    # print(test_real_labels)
+    # print(test_pre_labels)
+    class_names_length = len(class_names)
+    heat_maps = np.zeros((class_names_length, class_names_length))
+    for test_real_label, test_pre_label in zip(test_real_labels, test_pre_labels):
+        heat_maps[test_real_label][test_pre_label] = heat_maps[test_real_label][test_pre_label] + 1
+
+    print(heat_maps)
+    heat_maps_sum = np.sum(heat_maps, axis=1).reshape(-1, 1)
+    # print(heat_maps_sum)
+    print()
+    heat_maps_float = heat_maps / heat_maps_sum
+    print(heat_maps_float)
+    # title, x_labels, y_labels, harvest
+    show_heatmaps(title="heatmap", x_labels=class_names, y_labels=class_names, harvest=heat_maps_float,
+                  save_name="results/heatmap_cnn.png")
+
+
+def show_heatmaps(title, x_labels, y_labels, harvest, save_name):
+    # 这里是创建一个画布
+    fig, ax = plt.subplots()
+    # cmap https://blog.csdn.net/ztf312/article/details/102474190
+    im = ax.imshow(harvest, cmap="OrRd")
+    # 这里是修改标签
+    # We want to show all ticks...
+    ax.set_xticks(np.arange(len(y_labels)))
+    ax.set_yticks(np.arange(len(x_labels)))
+    # ... and label them with the respective list entries
+    ax.set_xticklabels(y_labels)
+    ax.set_yticklabels(x_labels)
+
+    # 因为x轴的标签太长了，需要旋转一下，更加好看
+    # Rotate the tick labels and set their alignment.
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+             rotation_mode="anchor")
+
+    # 添加每个热力块的具体数值
+    # Loop over data dimensions and create text annotations.
+    for i in range(len(x_labels)):
+        for j in range(len(y_labels)):
+            text = ax.text(j, i, round(harvest[i, j], 2),
+                           ha="center", va="center", color="black")
+    ax.set_xlabel("Predict label")
+    ax.set_ylabel("Actual label")
+    ax.set_title(title)
+    fig.tight_layout()
+    plt.colorbar(im)
+    plt.savefig(save_name, dpi=100)
+    # plt.show()
+
+
+if __name__ == '__main__':
+    test_mobilenet()
+    test_cnn()
+
+
+# -*- coding: utf-8 -*-
+# @Time    : 2021/6/17 20:29
+# @Author  : dejahu
+# @Email   : 1148392984@qq.com
+# @File    : train_cnn.py
+# @Software: PyCharm
+# @Brief   : cnn模型训练代码，训练的代码会保存在models目录下，折线图会保存在results目录下
+
+import tensorflow as tf
+import matplotlib.pyplot as plt
+from time import *
+
+
+# 数据集加载函数，指明数据集的位置并统一处理为imgheight*imgwidth的大小，同时设置batch
+def data_load(data_dir, test_data_dir, img_height, img_width, batch_size):
+    # 加载训练集
+    train_ds = tf.keras.preprocessing.image_dataset_from_directory(
+        data_dir,
+        label_mode='categorical',
+        seed=123,
+        image_size=(img_height, img_width),
+        batch_size=batch_size)
+    # 加载测试集
+    val_ds = tf.keras.preprocessing.image_dataset_from_directory(
+        test_data_dir,
+        label_mode='categorical',
+        seed=123,
+        image_size=(img_height, img_width),
+        batch_size=batch_size)
+    class_names = train_ds.class_names
+    # 返回处理之后的训练集、验证集和类名
+    return train_ds, val_ds, class_names
+
+
+# 构建CNN模型
+def model_load(IMG_SHAPE=(224, 224, 3), class_num=12):
+    # 搭建模型
+    model = tf.keras.models.Sequential([
+        # 对模型做归一化的处理，将0-255之间的数字统一处理到0到1之间
+        tf.keras.layers.experimental.preprocessing.Rescaling(1. / 255, input_shape=IMG_SHAPE),
+        # 卷积层，该卷积层的输出为32个通道，卷积核的大小是3*3，激活函数为relu
+        tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
+        # 添加池化层，池化的kernel大小是2*2
+        tf.keras.layers.MaxPooling2D(2, 2),
+        # Add another convolution
+        # 卷积层，输出为64个通道，卷积核大小为3*3，激活函数为relu
+        tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+        # 池化层，最大池化，对2*2的区域进行池化操作
+        tf.keras.layers.MaxPooling2D(2, 2),
+        # 将二维的输出转化为一维
+        tf.keras.layers.Flatten(),
+        # The same 128 dense layers, and 10 output layers as in the pre-convolution example:
+        tf.keras.layers.Dense(128, activation='relu'),
+        # 通过softmax函数将模型输出为类名长度的神经元上，激活函数采用softmax对应概率值
+        tf.keras.layers.Dense(class_num, activation='softmax')
+    ])
+    # 输出模型信息
+    model.summary()
+    # 指明模型的训练参数，优化器为sgd优化器，损失函数为交叉熵损失函数
+    model.compile(optimizer='sgd', loss='categorical_crossentropy', metrics=['accuracy'])
+    # 返回模型
+    return model
+
+
+# 展示训练过程的曲线
+def show_loss_acc(history):
+    # 从history中提取模型训练集和验证集准确率信息和误差信息
+    acc = history.history['accuracy']
+    val_acc = history.history['val_accuracy']
+    loss = history.history['loss']
+    val_loss = history.history['val_loss']
+
+    # 按照上下结构将图画输出
+    plt.figure(figsize=(8, 8))
+    plt.subplot(2, 1, 1)
+    plt.plot(acc, label='Training Accuracy')
+    plt.plot(val_acc, label='Validation Accuracy')
+    plt.legend(loc='lower right')
+    plt.ylabel('Accuracy')
+    plt.ylim([min(plt.ylim()), 1])
+    plt.title('Training and Validation Accuracy')
+
+    plt.subplot(2, 1, 2)
+    plt.plot(loss, label='Training Loss')
+    plt.plot(val_loss, label='Validation Loss')
+    plt.legend(loc='upper right')
+    plt.ylabel('Cross Entropy')
+    plt.title('Training and Validation Loss')
+    plt.xlabel('epoch')
+    plt.savefig('results/results_cnn.png', dpi=100)
+
+
+def train(epochs):
+    # 开始训练，记录开始时间
+    begin_time = time()
+    # todo 加载数据集， 修改为你的数据集的路径
+    train_ds, val_ds, class_names = data_load("../data/vegetable_fruit/image_data",
+                                              "../data/vegetable_fruit/test_image_data", 224, 224, 16)
+    print(class_names)
+    # 加载模型
+    model = model_load(class_num=len(class_names))
+    # 指明训练的轮数epoch，开始训练
+    history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
+    # todo 保存模型， 修改为你要保存的模型的名称
+    model.save("models/cnn_fv.h5")
+    # 记录结束时间
+    end_time = time()
+    run_time = end_time - begin_time
+    print('该循环程序运行时间：', run_time, "s")  # 该循环程序运行时间： 1.4201874732
+    # 绘制模型训练过程图
+    show_loss_acc(history)
+
+
+if __name__ == '__main__':
+    train(epochs=30)
+
+
+# -*- coding: utf-8 -*-
+# @Time    : 2021/6/17 20:29
+# @Author  : dejahu
+# @Email   : 1148392984@qq.com
+# @File    : train_mobilenet.py
+# @Software: PyCharm
+# @Brief   : mobilenet模型训练代码，训练的模型会保存在models目录下，折线图会保存在results目录下
+
+import tensorflow as tf
+import matplotlib.pyplot as plt
+from time import *
+
+
+# 数据集加载函数，指明数据集的位置并统一处理为imgheight*imgwidth的大小，同时设置batch
+def data_load(data_dir, test_data_dir, img_height, img_width, batch_size):
+    # 加载训练集
+    train_ds = tf.keras.preprocessing.image_dataset_from_directory(
+        data_dir,
+        label_mode='categorical',
+        seed=123,
+        image_size=(img_height, img_width),
+        batch_size=batch_size)
+    # 加载测试集
+    val_ds = tf.keras.preprocessing.image_dataset_from_directory(
+        test_data_dir,
+        label_mode='categorical',
+        seed=123,
+        image_size=(img_height, img_width),
+        batch_size=batch_size)
+    class_names = train_ds.class_names
+    # 返回处理之后的训练集、验证集和类名
+    return train_ds, val_ds, class_names
+
+
+# 构建mobilenet模型
+# 模型加载，指定图片处理的大小和是否进行迁移学习
+def model_load(IMG_SHAPE=(224, 224, 3), class_num=12):
+    # 微调的过程中不需要进行归一化的处理
+    # 加载预训练的mobilenet模型
+    base_model = tf.keras.applications.MobileNetV2(input_shape=IMG_SHAPE,
+                                                   include_top=False,
+                                                   weights='imagenet')
+    # 将模型的主干参数进行冻结
+    base_model.trainable = False
+    model = tf.keras.models.Sequential([
+        # 进行归一化的处理
+        tf.keras.layers.experimental.preprocessing.Rescaling(1. / 127.5, offset=-1, input_shape=IMG_SHAPE),
+        # 设置主干模型
+        base_model,
+        # 对主干模型的输出进行全局平均池化
+        tf.keras.layers.GlobalAveragePooling2D(),
+        # 通过全连接层映射到最后的分类数目上
+        tf.keras.layers.Dense(class_num, activation='softmax')
+    ])
+    model.summary()
+    # 模型训练的优化器为adam优化器，模型的损失函数为交叉熵损失函数
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    return model
+
+
+# 展示训练过程的曲线
+def show_loss_acc(history):
+    # 从history中提取模型训练集和验证集准确率信息和误差信息
+    acc = history.history['accuracy']
+    val_acc = history.history['val_accuracy']
+    loss = history.history['loss']
+    val_loss = history.history['val_loss']
+
+    # 按照上下结构将图画输出
+    plt.figure(figsize=(8, 8))
+    plt.subplot(2, 1, 1)
+    plt.plot(acc, label='Training Accuracy')
+    plt.plot(val_acc, label='Validation Accuracy')
+    plt.legend(loc='lower right')
+    plt.ylabel('Accuracy')
+    plt.ylim([min(plt.ylim()), 1])
+    plt.title('Training and Validation Accuracy')
+
+    plt.subplot(2, 1, 2)
+    plt.plot(loss, label='Training Loss')
+    plt.plot(val_loss, label='Validation Loss')
+    plt.legend(loc='upper right')
+    plt.ylabel('Cross Entropy')
+    plt.title('Training and Validation Loss')
+    plt.xlabel('epoch')
+    plt.savefig('results/results_mobilenet.png', dpi=100)
+
+
+def train(epochs):
+    # 开始训练，记录开始时间
+    begin_time = time()
+    # todo 加载数据集， 修改为你的数据集的路径
+    train_ds, val_ds, class_names = data_load("../data/vegetable_fruit/image_data",
+                                              "../data/vegetable_fruit/test_image_data", 224, 224, 16)
+    print(class_names)
+    # 加载模型
+    model = model_load(class_num=len(class_names))
+    # 指明训练的轮数epoch，开始训练
+    history = model.fit(train_ds, validation_data=val_ds, epochs=epochs)
+    # todo 保存模型， 修改为你要保存的模型的名称
+    model.save("models/mobilenet_fv.h5")
+    # 记录结束时间
+    end_time = time()
+    run_time = end_time - begin_time
+    print('该循环程序运行时间：', run_time, "s")  # 该循环程序运行时间： 1.4201874732
+    # 绘制模型训练过程图
+    show_loss_acc(history)
+
+
+if __name__ == '__main__':
+    train(epochs=30)
+
+
+# -*- coding: utf-8 -*-
+# @Time    : 2021/6/17 20:29
+# @Author  : dejahu
+# @Email   : 1148392984@qq.com
+# @File    : window.py
+# @Software: PyCharm
+# @Brief   : 图形化界面
+
+import tensorflow as tf
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtWidgets import *
+import sys
+import cv2
+from PIL import Image
+import numpy as np
+import shutil
+
+
+class MainWindow(QTabWidget):
+    # 初始化
+    def __init__(self):
+        super().__init__()
+        self.setWindowIcon(QIcon('images/logo.png'))
+        self.setWindowTitle('水稻虫害识别系统')  # todo 修改系统名称
+        # 模型初始化
+        self.model = tf.keras.models.load_model("models/mobilenet_fv.h5")  # todo 修改模型名称
+        self.to_predict_name = "images/tim9.jpeg"  # todo 修改初始图片，这个图片要放在images目录下
+        self.class_names = ['枯萎病'，‘灾病’，‘褐斑病’，‘健康’]  # todo 修改类名，这个数组在模型训练的开始会输出
+        self.resize(900, 700)
+        self.initUI()
+
+    # 界面初始化，设置界面布局
+    def initUI(self):
+        main_widget = QWidget()
+        main_layout = QHBoxLayout()
+        font = QFont('楷体', 15)
+
+        # 主页面，设置组件并在组件放在布局上
+        left_widget = QWidget()
+        left_layout = QVBoxLayout()
+        img_title = QLabel("样本")
+        img_title.setFont(font)
+        img_title.setAlignment(Qt.AlignCenter)
+        self.img_label = QLabel()
+        img_init = cv2.imread(self.to_predict_name)
+        h, w, c = img_init.shape
+        scale = 400 / h
+        img_show = cv2.resize(img_init, (0, 0), fx=scale, fy=scale)
+        cv2.imwrite("images/show.png", img_show)
+        img_init = cv2.resize(img_init, (224, 224))
+        cv2.imwrite('images/target.png', img_init)
+        self.img_label.setPixmap(QPixmap("images/show.png"))
+        left_layout.addWidget(img_title)
+        left_layout.addWidget(self.img_label, 1, Qt.AlignCenter)
+        left_widget.setLayout(left_layout)
+        right_widget = QWidget()
+        right_layout = QVBoxLayout()
+        btn_change = QPushButton(" 上传图片 ")
+        btn_change.clicked.connect(self.change_img)
+        btn_change.setFont(font)
+        btn_predict = QPushButton(" 开始识别 ")
+        btn_predict.setFont(font)
+        btn_predict.clicked.connect(self.predict_img)
+        label_result = QLabel(' 虫害名称 ')
+        self.result = QLabel("等待识别")
+        label_result.setFont(QFont('楷体', 16))
+        self.result.setFont(QFont('楷体', 24))
+        right_layout.addStretch()
+        right_layout.addWidget(label_result, 0, Qt.AlignCenter)
+        right_layout.addStretch()
+        right_layout.addWidget(self.result, 0, Qt.AlignCenter)
+        right_layout.addStretch()
+        right_layout.addStretch()
+        right_layout.addWidget(btn_change)
+        right_layout.addWidget(btn_predict)
+        right_layout.addStretch()
+        right_widget.setLayout(right_layout)
+        main_layout.addWidget(left_widget)
+        main_layout.addWidget(right_widget)
+        main_widget.setLayout(main_layout)
+
+        # 关于页面，设置组件并把组件放在布局上
+        about_widget = QWidget()
+        about_layout = QVBoxLayout()
+        about_title = QLabel('欢迎使用水稻虫害识别系统')  # todo 修改欢迎词语
+        about_title.setFont(QFont('楷体', 18))
+        about_title.setAlignment(Qt.AlignCenter)
+        about_img = QLabel()
+        about_img.setPixmap(QPixmap('images/bj.jpg'))
+        about_img.setAlignment(Qt.AlignCenter)
+        label_super = QLabel("作者：dejahu")  # todo 更换作者信息
+        label_super.setFont(QFont('楷体', 12))
+        # label_super.setOpenExternalLinks(True)
+        label_super.setAlignment(Qt.AlignRight)
+        about_layout.addWidget(about_title)
+        about_layout.addStretch()
+        about_layout.addWidget(about_img)
+        about_layout.addStretch()
+        about_layout.addWidget(label_super)
+        about_widget.setLayout(about_layout)
+
+        # 添加注释
+        self.addTab(main_widget, '主页')
+        self.addTab(about_widget, '关于')
+        self.setTabIcon(0, QIcon('images/主页面.png'))
+        self.setTabIcon(1, QIcon('images/关于.png'))
+
+    # 上传并显示图片
+    def change_img(self):
+        openfile_name = QFileDialog.getOpenFileName(self, 'chose files', '',
+                                                    'Image files(*.jpg *.png *jpeg)')  # 打开文件选择框选择文件
+        img_name = openfile_name[0]  # 获取图片名称
+        if img_name == '':
+            pass
+        else:
+            target_image_name = "images/tmp_up." + img_name.split(".")[-1]  # 将图片移动到当前目录
+            shutil.copy(img_name, target_image_name)
+            self.to_predict_name = target_image_name
+            img_init = cv2.imread(self.to_predict_name)  # 打开图片
+            h, w, c = img_init.shape
+            scale = 400 / h
+            img_show = cv2.resize(img_init, (0, 0), fx=scale, fy=scale)  # 将图片的大小统一调整到400的高，方便界面显示
+            cv2.imwrite("images/show.png", img_show)
+            img_init = cv2.resize(img_init, (224, 224))  # 将图片大小调整到224*224用于模型推理
+            cv2.imwrite('images/target.png', img_init)
+            self.img_label.setPixmap(QPixmap("images/show.png"))
+            self.result.setText("等待识别")
+
+    # 预测图片
+    def predict_img(self):
+        img = Image.open('images/target.png')  # 读取图片
+        img = np.asarray(img)  # 将图片转化为numpy的数组
+        outputs = self.model.predict(img.reshape(1, 224, 224, 3))  # 将图片输入模型得到结果
+        result_index = int(np.argmax(outputs))
+        result = self.class_names[result_index]  # 获得对应的水果名称
+        self.result.setText(result)  # 在界面上做显示
+
+    # 界面关闭事件，询问用户是否关闭
+    def closeEvent(self, event):
+        reply = QMessageBox.question(self,
+                                     '退出',
+                                     "是否要退出程序？",
+                                     QMessageBox.Yes | QMessageBox.No,
+                                     QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            self.close()
+            event.accept()
+        else:
+            event.ignore()
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    x = MainWindow()
+    x.show()
+    sys.exit(app.exec_())
